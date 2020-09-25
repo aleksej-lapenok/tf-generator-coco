@@ -16,6 +16,7 @@ limitations under the License.
 from .generator import get_coco_generator
 from .eval      import get_coco_evaluation, get_coco_evaluation_callback
 from tf_retinanet.utils.config import set_defaults
+import tensorflow as tf
 
 
 default_config = {
@@ -84,7 +85,18 @@ def from_config(config, submodels_manager, preprocess_image, **kwargs):
 		num_classes = generators['test'].num_classes()
 
 	generators['evaluation_procedure'] = get_coco_evaluation(config['mask'])
-	generators['evaluation_callback']  = get_coco_evaluation_callback(config['mask'])
+	if 'no-evaluation' not in config:
+		generators['evaluation_callback']  = get_coco_evaluation_callback(config['mask'])
+	else:
+		class NoEvaluation(tf.keras.callbacks.Callback):
+			def __init__(self, generator):
+				self.generator = generator
+				super(NoEvaluation, self).__init__()
+
+			def on_epoch_end(self, epoch, logs=None):
+				return
+
+		generators['evaluation_callback']  = NoEvaluation
 
 	# Set up the submodels for this generator.
 	assert num_classes != 0, "Got 0 classes from COCO generator."
